@@ -2,7 +2,7 @@ import logo from './logo.svg';
 import './App.css';
 
 function App() {
-  const BASE_URL = window?._env_?.REACT_APP_API_BASE_URL
+  const BASE_URL = window._env_.REACT_APP_API_BASE_URL
   return (
     <div className="App">
       <header className="App-header">

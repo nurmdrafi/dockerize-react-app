@@ -36,25 +36,31 @@ COPY --from=deps /app/node_modules ./node_modules
 RUN npm run build
 
 # Stage 3: Serve the project
-FROM nginx:alpine AS runner
+FROM ubuntu:24.10 AS runner
 
-# Nginx config
-RUN rm -rf /etc/nginx/conf.d
-COPY conf /etc/nginx
+WORKDIR /app
 
-# Static build folde
-COPY --from=builder /app/build /usr/share/nginx/html/
+# Install Node.js
+RUN apt update \
+    && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
 
-# Default port exposure
-EXPOSE 80
+# Install `serve` to run the application.
+RUN npm install -g serve
 
-# Copy .env file and shell script to Docker filesystem
-WORKDIR /usr/share/nginx/html
+# Copy build files
+COPY --from=builder /app/build .
+
+# Copy the shell script to replace environment variables
 COPY ./env.production.sh .
-COPY .env.production .
 
 # Make shell script executable
 RUN chmod +x env.production.sh
+COPY .env.production .
 
-# Start Nginx server
-CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.production.sh && nginx -g \"daemon off;\""]
+# Default port exposure
+EXPOSE 3000
+
+# Run
+CMD ["/bin/sh", "-c", "/app/env.production.sh && serve -s . -l 3000"]
