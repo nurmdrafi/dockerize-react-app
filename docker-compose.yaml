@@ -6,7 +6,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      - .env.development
     ports:
       - "5000:80"
