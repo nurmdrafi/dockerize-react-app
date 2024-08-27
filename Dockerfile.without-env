@@ -1,7 +1,7 @@
 # Stage 1: Install dependencies and Build the project
 FROM ubuntu:24.10 AS builder
 
-# set working directory
+# Set working directory
 WORKDIR /app
 
 # Install Node.js
@@ -10,14 +10,14 @@ RUN apt update \
     && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
     
-# Copies everything over to Docker environment
+# Copies everything over to Docker filesystem
 COPY . .
 
-# Installs all node packages
+# Installs packages
 RUN npm install --force
 
-# Build for production.
-RUN npm run safe-build
+# Build for production
+RUN npm run build
 
 # Stage 2: Serve the project
 FROM ubuntu:24.10 AS runner
@@ -30,13 +30,14 @@ RUN apt update \
     && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
 
-# Install `serve` to run the application.
+# Install `serve` to run the application
 RUN npm install -g serve
 
+# Copy build folder
 COPY --from=builder /app/build ./build
 
-# Uses port which is used by the actual application
+# Expose the port
 EXPOSE 3000
 
-# Run application
+# Run the application
 CMD serve -s build -l 3000

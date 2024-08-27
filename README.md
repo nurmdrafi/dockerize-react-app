@@ -1,6 +1,4 @@
-- [How to implement runtime environment variables with create-react-app, Docker, and Nginx](https://medium.com/free-code-camp/how-to-implement-runtime-environment-variables-with-create-react-app-docker-and-nginx-7f9d42a91d70)
-
-### Dockerize React Project
+### Dockerize React App
 ## Without ENV
 ```Dockerfile
 # Stage 1: Install dependencies and Build the project
@@ -112,7 +110,9 @@ RUN chmod +x env.production.sh
 CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.production.sh && nginx -g \"daemon off;\""]
 ```
 
-#### Docker compose
+#### Create Docker Compose File
+- Use `.env.development` for local development
+- Use `.env.production` for docker hub
 ```yaml
 services:
   dockerize-react-app:
@@ -123,36 +123,23 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env.local
+      # - .env.development
+      # - .env.production
     ports:
       - "5000:80"
 ```
-
-#### For local development
+#### Create Shell Script
+This shell script generates a JavaScript file (`env-config.js`) that defines a `window._env_` object, containing environment variables and their values. 
 ```sh
-# .env.development
-REACT_APP_API_BASE_URL=https://test.barikoimaps.dev
-```
-
-#### For docker build
-```sh
-# .env.production
-REACT_APP_API_BASE_URL=
-```
-#### This script generate env-config.js for production
-```sh
-# .env.production.sh
 #!/bin/sh
+# .env.production.sh
 echo "window._env_ = {" > ./env-config.js
 awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.production >> ./env-config.js
 echo "}" >> ./env-config.js
 ```
 
-#### This script generate env-config.js for development
 ```sh
 # .env.development.sh
-#!/bin/sh
-# line endings must be \n, not \r\n !
 echo "window._env_ = {" > ./env-config.js
 awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.development >> ./env-config.js
 echo "}" >> ./env-config.js
@@ -172,3 +159,13 @@ echo "}" >> ./env-config.js
     "eject": "react-scripts eject",
   },
 ```
+
+#### Commands
+```sh
+# Run specific docker compose file
+docker compose up -f ${filename} up -d
+```
+
+### Resource
+- [How to implement runtime env variables with create-react-app, Docker, and Nginx](https://medium.com/free-code-camp/how-to-implement-runtime-environment-variables-with-create-react-app-docker-and-nginx-7f9d42a91d70)
+- [React script's env variable priority](https://gist.github.com/csandman/f17d2c9f19b396328cec4254b9a77995)
