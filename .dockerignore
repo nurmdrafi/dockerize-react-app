@@ -1,0 +1,12 @@
+# Files
+Dockerfile
+README.md
+.dockerignore
+commitlint.config.js
+
+# Folders
+.git
+.github
+.husky
+.vscode
+node_modules

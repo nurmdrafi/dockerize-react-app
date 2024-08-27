@@ -1,70 +1,174 @@
-# Getting Started with Create React App
+- [How to implement runtime environment variables with create-react-app, Docker, and Nginx](https://medium.com/free-code-camp/how-to-implement-runtime-environment-variables-with-create-react-app-docker-and-nginx-7f9d42a91d70)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Dockerize React Project
+## Without ENV
+```Dockerfile
+# Stage 1: Install dependencies and Build the project
+FROM ubuntu:24.10 AS builder
 
-## Available Scripts
+# Set working directory
+WORKDIR /app
 
-In the project directory, you can run:
+# Install Node.js
+RUN apt update \
+    && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && apt-get install -y nodejs
+    
+# Copies everything over to Docker environment
+COPY . .
 
-### `npm start`
+# Installs all node packages
+RUN npm install --force
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+# Build for production.
+RUN npm run build
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+# Stage 2: Serve the project
+FROM ubuntu:24.10 AS runner
 
-### `npm test`
+WORKDIR /app
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Install Node.js
+RUN apt update \
+    && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && apt-get install -y nodejs
 
-### `npm run build`
+# Install `serve` to run the application.
+RUN npm install -g serve
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+# Copy build files
+COPY --from=builder /app/build ./build
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# Default port exposure
+EXPOSE 3000
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# Run application
+CMD serve -s build -l 3000
+```
+***Note:-*** We used `ubuntu` base image instead of `alpine` base image to prevent vulnerability issue
 
-### `npm run eject`
+## Dynamic ENV (Method 1)
+```Dockerfile
+# Stage 1: Install dependencies
+FROM ubuntu:24.10 AS deps
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+# set working directory
+WORKDIR /app
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Install Node.js
+RUN apt update \
+    && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && apt-get install -y nodejs
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Copy
+COPY package.json package-lock.json ./
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# Installs all node packages
+RUN npm ci --force
 
-## Learn More
+# Stage 2: Build the project
+FROM ubuntu:24.10 AS builder
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+WORKDIR /app
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+# Install Node.js
+RUN apt update \
+    && apt-get install -y curl \
+    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && apt-get install -y nodejs
 
-### Code Splitting
+# Copy
+COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+# Build for production
+RUN npm run safe-build
 
-### Analyzing the Bundle Size
+# Stage 3: Serve the project
+FROM nginx:alpine AS runner
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+# Nginx config
+RUN rm -rf /etc/nginx/conf.d
+COPY conf /etc/nginx
 
-### Making a Progressive Web App
+# Copy build files
+COPY --from=builder /app/build /usr/share/nginx/html/
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+# Default port exposure
+EXPOSE 80
 
-### Advanced Configuration
+# Copy .env file and shell script to container
+WORKDIR /usr/share/nginx/html
+COPY ./env.production.sh .
+COPY .env.production .
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+# Make our shell script executable
+RUN chmod +x env.production.sh
 
-### Deployment
+# Start Nginx server
+CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.production.sh && nginx -g \"daemon off;\""]
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+#### Docker compose
+```yaml
+services:
+  dockerize-react-app:
+    container_name: dockerize-react-app
+    image: dockerize-react-app
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.local
+    ports:
+      - "5000:80"
+```
 
-### `npm run build` fails to minify
+#### For local development
+```sh
+# .env.development
+REACT_APP_API_BASE_URL=https://test.barikoimaps.dev
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+#### For docker build
+```sh
+# .env.production
+REACT_APP_API_BASE_URL=
+```
+#### This script generate env-config.js for production
+```sh
+# .env.production.sh
+#!/bin/sh
+echo "window._env_ = {" > ./env-config.js
+awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.production >> ./env-config.js
+echo "}" >> ./env-config.js
+```
+
+#### This script generate env-config.js for development
+```sh
+# .env.development.sh
+#!/bin/sh
+# line endings must be \n, not \r\n !
+echo "window._env_ = {" > ./env-config.js
+awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.development >> ./env-config.js
+echo "}" >> ./env-config.js
+```
+#### Include this script on index.html head tag
+```html
+<script src="%PUBLIC_URL%/env-config.js"></script>
+```
+
+#### Update package.json scripts
+```json
+  "scripts": {
+    "dev": "chmod +x ./env.development.sh && ./env.development.sh && cp env-config.js ./public/ && react-scripts start",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+  },
+```
