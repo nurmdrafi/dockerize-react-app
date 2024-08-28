@@ -1,5 +1,4 @@
-### Dockerize React App
-## Without ENV
+## Dockerize React App Without ENV
 ```Dockerfile
 # Stage 1: Install dependencies and Build the project
 FROM ubuntu:24.10 AS builder
@@ -13,13 +12,13 @@ RUN apt update \
     && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
     
-# Copies everything over to Docker environment
+# Copies everything over to Docker filesystem
 COPY . .
 
-# Installs all node packages
+# Install packages
 RUN npm install --force
 
-# Build for production.
+# Build for production
 RUN npm run build
 
 # Stage 2: Serve the project
@@ -33,86 +32,21 @@ RUN apt update \
     && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
 
-# Install `serve` to run the application.
+# Install `serve` to run the application
 RUN npm install -g serve
 
-# Copy build files
+# Copy build folder
 COPY --from=builder /app/build ./build
 
-# Default port exposure
+# Expose the port
 EXPOSE 3000
 
-# Run application
+# Run the application
 CMD serve -s build -l 3000
 ```
 ***Note:-*** We used `ubuntu` base image instead of `alpine` base image to prevent vulnerability issue
 
-## Dynamic ENV (Method 1)
-```Dockerfile
-# Stage 1: Install dependencies
-FROM ubuntu:24.10 AS deps
-
-# set working directory
-WORKDIR /app
-
-# Install Node.js
-RUN apt update \
-    && apt-get install -y curl \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs
-
-# Copy
-COPY package.json package-lock.json ./
-
-# Installs all node packages
-RUN npm ci --force
-
-# Stage 2: Build the project
-FROM ubuntu:24.10 AS builder
-
-WORKDIR /app
-
-# Install Node.js
-RUN apt update \
-    && apt-get install -y curl \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs
-
-# Copy
-COPY . .
-COPY --from=deps /app/node_modules ./node_modules
-
-# Build for production
-RUN npm run safe-build
-
-# Stage 3: Serve the project
-FROM nginx:alpine AS runner
-
-# Nginx config
-RUN rm -rf /etc/nginx/conf.d
-COPY conf /etc/nginx
-
-# Copy build files
-COPY --from=builder /app/build /usr/share/nginx/html/
-
-# Default port exposure
-EXPOSE 80
-
-# Copy .env file and shell script to container
-WORKDIR /usr/share/nginx/html
-COPY ./env.production.sh .
-COPY .env.production .
-
-# Make our shell script executable
-RUN chmod +x env.production.sh
-
-# Start Nginx server
-CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.production.sh && nginx -g \"daemon off;\""]
-```
-
-#### Create Docker Compose File
-- Use `.env.development` for local development
-- Use `.env.production` for docker hub
+### Create Docker Compose
 ```yaml
 services:
   dockerize-react-app:
@@ -122,45 +56,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    env_file:
-      # - .env.development
-      # - .env.production
     ports:
-      - "5000:80"
-```
-#### Create Shell Script
-This shell script generates a JavaScript file (`env-config.js`) that defines a `window._env_` object, containing environment variables and their values. 
-```sh
-#!/bin/sh
-# .env.production.sh
-echo "window._env_ = {" > ./env-config.js
-awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.production >> ./env-config.js
-echo "}" >> ./env-config.js
+      - "5000:3000"
 ```
 
-```sh
-# .env.development.sh
-echo "window._env_ = {" > ./env-config.js
-awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.development >> ./env-config.js
-echo "}" >> ./env-config.js
-```
-#### Include this script on index.html head tag
-```html
-<script src="%PUBLIC_URL%/env-config.js"></script>
-```
-
-#### Update package.json scripts
-```json
-  "scripts": {
-    "dev": "chmod +x ./env.development.sh && ./env.development.sh && cp env-config.js ./public/ && react-scripts start",
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-  },
-```
-
-#### Commands
+### Commands
 ```sh
 # Run specific docker compose file
 docker compose up -f ${filename} up -d

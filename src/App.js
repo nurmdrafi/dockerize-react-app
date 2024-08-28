@@ -12,7 +12,7 @@ function App() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Base Url
+          Dockerize React App Without ENV
         </a>
       </header>
     </div>

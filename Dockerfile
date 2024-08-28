@@ -13,7 +13,7 @@ RUN apt update \
 # Copies everything over to Docker filesystem
 COPY . .
 
-# Installs packages
+# Install packages
 RUN npm install --force
 
 # Build for production
