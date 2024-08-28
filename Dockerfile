@@ -32,8 +32,8 @@ RUN apt update \
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
 
-# Build for production
-RUN npm run build
+# Build for staging
+RUN npm run build:staging
 
 # Stage 3: Serve the project
 FROM ubuntu:24.10 AS runner
@@ -53,14 +53,14 @@ RUN npm install -g serve
 COPY --from=builder /app/build .
 
 # Copy the shell script to replace environment variables
-COPY ./env.production.sh .
+COPY ./env.staging.sh .
 
 # Make shell script executable
-RUN chmod +x env.production.sh
-COPY .env.production .
+RUN chmod +x env.staging.sh
+COPY .env.staging .
 
 # Default port exposure
 EXPOSE 3000
 
 # Run
-CMD ["/bin/sh", "-c", "/app/env.production.sh && serve -s . -l 3000"]
+CMD ["/bin/sh", "-c", "/app/env.staging.sh && serve -s . -l 3000"]
