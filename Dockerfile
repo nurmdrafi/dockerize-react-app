@@ -4,8 +4,10 @@ FROM ubuntu:24.10 AS deps
 # Set working directory
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
@@ -22,8 +24,10 @@ FROM ubuntu:24.10 AS builder
 # Set working directory
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
@@ -40,8 +44,10 @@ FROM ubuntu:24.10 AS runner
 
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
