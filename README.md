@@ -7,8 +7,10 @@ FROM ubuntu:24.10 AS deps
 # Set working directory
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
@@ -25,26 +27,30 @@ FROM ubuntu:24.10 AS builder
 # Set working directory
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
-# Copies everything over to Docker filesystem
+# Copy all and node_modules
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
 
-# Build for staging
-RUN npm run build:staging
+# Build for docker
+RUN npm run build:docker
 
 # Stage 3: Serve the project
 FROM ubuntu:24.10 AS runner
 
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
@@ -55,18 +61,18 @@ RUN npm install -g serve
 # Copy build files
 COPY --from=builder /app/build .
 
-# Copy the shell script to replace environment variables
-COPY ./env.staging.sh .
+# Copy the shell script and env file
+COPY ./env.sh .
+COPY .env.example .
 
 # Make shell script executable
-RUN chmod +x env.staging.sh
-COPY .env.staging .
+RUN chmod +x env.sh
 
 # Default port exposure
 EXPOSE 3000
 
 # Run
-CMD ["/bin/sh", "-c", "/app/env.staging.sh && serve -s . -l 3000"]
+CMD ["/bin/sh", "-c", "/app/env.sh && serve -s . -l 3000"]
 ```
 
 ***Note:-*** We used `ubuntu` base image instead of `alpine` base image to prevent vulnerability issue
@@ -87,8 +93,7 @@ services:
       dockerfile: Dockerfile
     env_file:
       # - .env.local
-      # - .env.staging
-      # - .env.production
+      # - .env.example
     ports:
       - "5000:80"
 ```
@@ -99,7 +104,7 @@ This shell script generates a JavaScript file (`env-config.js`) that defines a `
 ```sh
 #!/bin/sh
 echo "window._env_ = {" > ./env-config.js
-awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.staging >> ./env-config.js
+awk -F '=' '{ print $1 ": \"" (ENVIRON[$1] ? ENVIRON[$1] : $2) "\"," }' ./.env.example >> ./env-config.js
 echo "}" >> ./env-config.js
 ```
 
@@ -110,12 +115,11 @@ echo "}" >> ./env-config.js
 
 #### Update package.json scripts
 ```json
-  "scripts": {
+ "scripts": {
     "dev": "chmod +x ./env.local.sh && ./env.local.sh && cp env-config.js ./public/ && react-scripts start",
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:staging": "env-cmd -f .env.staging react-scripts build",
-    "build:production": "env-cmd -f .env.production react-scripts build",
+    "build:docker": "env-cmd -f .env.example react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

@@ -5,8 +5,8 @@ services:
     restart: unless-stopped
     build:
       context: .
-      dockerfile: Dockerfile.with-env
+      dockerfile: Dockerfile
     env_file:
-      - .env.production
+      - .env.example
     ports:
       - "5000:3000"
