@@ -133,5 +133,5 @@ docker compose up -f ${filename} up -d
 
 ### Resource
 - [How to implement runtime env variables with create-react-app, Docker, and Nginx](https://medium.com/free-code-camp/how-to-implement-runtime-environment-variables-with-create-react-app-docker-and-nginx-7f9d42a91d70)
-- [React script's env variable priority](https://gist.github.com/csandman/f17d2c9f19b396328cec4254b9a77995)
+- [React script's env variable priority order](https://create-react-app.dev/docs/adding-custom-environment-variables/#what-other-env-files-can-be-used)
 - [Managing .env variables for provisional builds with Create React App](https://dev.to/jam3/managing-env-variables-for-provisional-builds-h37)
