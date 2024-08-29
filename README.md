@@ -6,10 +6,12 @@ FROM ubuntu:24.10 AS builder
 # Set working directory
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
     
 # Copies everything over to Docker filesystem
@@ -26,10 +28,12 @@ FROM ubuntu:24.10 AS runner
 
 WORKDIR /app
 
-# Install Node.js
-RUN apt update \
+# Set APT retries and timeout + Install curl, and Node.js
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
+    && echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80-retries \
+    && apt-get update \
     && apt-get install -y curl \
-    && curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
 # Install `serve` to run the application
@@ -68,4 +72,5 @@ docker compose up -f ${filename} up -d
 
 ### Resource
 - [How to implement runtime env variables with create-react-app, Docker, and Nginx](https://medium.com/free-code-camp/how-to-implement-runtime-environment-variables-with-create-react-app-docker-and-nginx-7f9d42a91d70)
+- [React script's env variable priority order](https://create-react-app.dev/docs/adding-custom-environment-variables/#what-other-env-files-can-be-used)
 - [React script's env variable priority](https://gist.github.com/csandman/f17d2c9f19b396328cec4254b9a77995)
