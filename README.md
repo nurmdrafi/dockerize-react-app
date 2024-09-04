@@ -72,17 +72,17 @@ FROM ubuntu:24.10 AS runner
 WORKDIR /app
 
 # Copy NVM from the base stage for non-root user
-COPY --from=base /root/.nvm /home/nextjs/.nvm
+COPY --from=base /root/.nvm /home/reactjs/.nvm
 
 # Set Node.js environment for non-root user
 ENV NODE_VERSION="22.0.0"
-ENV NVM_DIR="/home/nextjs/.nvm"
+ENV NVM_DIR="/home/reactjs/.nvm"
 ENV PATH="$NVM_DIR/versions/node/v$NODE_VERSION/bin:$PATH"
 
 # Install `serve` to run the application.
 RUN npm install -g serve
 
-# Copy build files
+# Copy build files from builder stage
 COPY --from=builder /app/build .
 
 # Copy the shell script and env file
@@ -91,6 +91,17 @@ COPY .env.example .
 
 # Make shell script executable
 RUN chmod +x env.sh
+
+# Create a non-root user and set ownership
+RUN groupadd -g 1001 nodejs \
+    && useradd -u 1001 -g nodejs -m -s /bin/bash reactjs \
+    && chown -R reactjs:nodejs /app
+
+# Ensure Node.js is accessible for the non-root user
+RUN bash -c "chown -R reactjs:nodejs /home/reactjs/.nvm"   
+
+# Switch to non-root user
+USER reactjs
 
 # Default port exposure
 EXPOSE 3000
